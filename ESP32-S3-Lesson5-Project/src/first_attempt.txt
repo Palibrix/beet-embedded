@@ -1,0 +1,85 @@
+#include <Arduino.h>
+#include <cmath>
+
+
+
+#define POTENTIOMETER_PIN 4
+#define RED_LED_PIN 5
+#define BLUE_LED_PIN 6
+
+uint8_t led_state = 0;
+
+void setup() {
+    Serial.begin(9600);
+    // pinMode(RED_LED_PIN, OUTPUT);
+    analogReadResolution(8);
+    analogWriteResolution(8);
+}
+
+int roundToFive(int value) {
+    int fraction = 3; //5, 15, 85
+    return round(value / fraction) * fraction;
+}
+
+int loopInt(int value) {
+    // Get opposite of 255 int
+    return abs(value-255);
+}
+
+void loop() {
+    unsigned int brightness = analogRead(4);
+    brightness = roundToFive(brightness);
+    Serial.println(brightness);
+    // digitalWrite(RED_LED_PIN, led_state);
+    // led_state = !led_state;
+    // double b = (a/4095)*100;
+    // Serial.println(a);
+    // Serial.println(b);
+    analogWrite(RED_LED_PIN, brightness);
+    analogWrite(BLUE_LED_PIN, loopInt(brightness));
+    delay(40);
+}
+
+
+#include <Arduino.h>
+#include <cmath>
+
+
+
+#define POTENTIOMETER_PIN 3
+#define BLUE_LED_PIN 6
+constexpr int RED_LED_PINS[] {4, 5, 6, 7};
+constexpr int LED_ARRAY_SIZE = sizeof(RED_LED_PINS) / sizeof(RED_LED_PINS[0]);
+
+uint8_t main_leg_idx = 0;
+
+void setup() {
+    Serial.begin(9600);
+    analogReadResolution(10);
+    analogWriteResolution(8);
+    //
+    for(int i : RED_LED_PINS) {
+        pinMode(i, OUTPUT);
+    }
+}
+
+
+void loop() {
+    uint32_t wave_speed = analogRead(POTENTIOMETER_PIN);
+    wave_speed = (wave_speed + 25) * 2;
+    Serial.println(wave_speed);
+
+    uint8_t next_led_idx = (main_leg_idx + 1) % LED_ARRAY_SIZE;
+    uint8_t prev_led_idx = (main_leg_idx + LED_ARRAY_SIZE - 1) % LED_ARRAY_SIZE;
+
+    Serial.println("Previous: " + String(prev_led_idx) + " Current : " + String(main_leg_idx) + " Next: " + String(next_led_idx));
+
+    analogWrite(RED_LED_PINS[main_leg_idx], 255);
+    analogWrite(RED_LED_PINS[next_led_idx], 50);
+    analogWrite(RED_LED_PINS[prev_led_idx], 50);
+    // Other as 0
+
+    delay(wave_speed);
+    // analogWrite(RED_LED_PINS[main_leg_idx], LOW);
+    main_leg_idx = (main_leg_idx + 1) % LED_ARRAY_SIZE;
+}
