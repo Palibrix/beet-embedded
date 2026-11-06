@@ -23,7 +23,7 @@ void blinkLed(void *pvParams) {
     while (1) {
         digitalWrite(led->pin, state);
         state = !state;
-        vTaskDelay(led->delay/portTICK_PERIOD_MS);
+        vTaskDelay(pdMS_TO_TICKS(led->delay));
     }
 }
 
