@@ -4,8 +4,10 @@
 #include "encoder_helper.h"
 #include "display_helper.h"
 
-static uint8_t getNewRandomNumber() {
-    return random(1, 9);
+static uint8_t getNewRandomNumber(uint8_t oldNumber) {
+    uint8_t n;
+    do { n = random(0, 10); } while (n == oldNumber);
+    return n;
 }
 
 static uint8_t valueToGuess = 0;
@@ -18,14 +20,12 @@ void setup() {
     setupEncoder();
     setupDisplay();
 
-    randomSeed(analogRead(0));
+    randomSeed(analogRead(13));
 
-    valueToGuess = getNewRandomNumber();
+    valueToGuess = getNewRandomNumber(valueToGuess);
 }
 
 void loop() {
-    // playMelody(SUCCESS_MELODY);
-
     encoder.tick();
     button.update();
 
@@ -40,32 +40,38 @@ void loop() {
             encoder.setPosition(9);
         }
 
+        previousPosition = currentPosition;
+        showDigit(currentPosition);
+
         if (currentPosition == valueToGuess) {
             playMelody(PING_MELODY);
         }
-
-        previousPosition = currentPosition;
-        Serial.println(currentPosition);
     }
 
     if (button.pressed()) {
+        bool toResetAttempt = false;
         if (currentPosition == valueToGuess) {
             digitalWrite(ATTEMPT_LEDS[currentAttempt], HIGH);
             if (currentAttempt == 3) {
-                currentAttempt = 0;
+                toResetAttempt = true;
+                resetDisplay();
                 playMelody(SUCCESS_MELODY);
-                resetLeds();
             } else currentAttempt++;
 
         } else {
-            currentAttempt = 0;
+            toResetAttempt = true;
+            resetDisplay();
             playMelody(FAIL_MELODY);
-            resetLeds();
         }
 
-        valueToGuess = getNewRandomNumber();
+        if (toResetAttempt == true) {
+            resetLeds();
+            currentAttempt = 0;
+            encoder.setPosition(0);
+            previousPosition = 0;
+            showDigit(0);
+        }
 
-        encoder.setPosition(0);
-        previousPosition = 0;
+        valueToGuess = getNewRandomNumber(previousPosition);
     }
 }

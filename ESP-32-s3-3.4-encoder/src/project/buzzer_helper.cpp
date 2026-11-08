@@ -1,11 +1,8 @@
 #include "buzzer_helper.h"
 
 void playNote(Note note) {
-    if (note.frequency <= 0) {
-        noTone(BUZZER_CHANNEL);
-    } else {
-        tone(BUZZER_CHANNEL, note.frequency, note.duration);
-    }
+    if (note.frequency == 0) noTone(BUZZER_PIN);
+    else tone(BUZZER_PIN, note.frequency, note.duration);
     delay(note.duration);
 }
 

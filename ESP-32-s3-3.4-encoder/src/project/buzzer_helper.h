@@ -5,7 +5,7 @@
 
 #define BUZZER_PIN 47
 #define BUZZER_CHANNEL LEDC_CHANNEL_0
-#define PWM_RESOLUTION LEDC_TIMER_10_BIT
+#define PWM_RESOLUTION 10
 
 #define NOTE_C4  262
 #define NOTE_D4  294
@@ -25,7 +25,6 @@ constexpr Note FAIL_MELODY[] = {
     Note{NOTE_A4, 1000},
     Note{NOTE_D4, 1000},
     Note{NOTE_C4, 500},
-    // Note{NOTE_C4, 500},
 };
 constexpr Note SUCCESS_MELODY[] = {
     {NOTE_C4, 150},
@@ -41,7 +40,7 @@ constexpr Note SUCCESS_MELODY[] = {
     {NOTE_E4, 150},
 };
 constexpr Note PING_MELODY[] = {
-    Note{NOTE_C4, 50},
+    Note{NOTE_C4, 20},
 };
 
 void playNote(Note note);
