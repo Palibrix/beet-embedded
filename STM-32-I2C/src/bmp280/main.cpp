@@ -13,7 +13,6 @@
 
 #define DISPLAY_ADDR 0x3c
 #define BME280_ADDR 0x76
-#define DS1307_ADDRESS 0x68
 
 #define DISPLAY_WIDTH 128
 #define DISPLAY_HEIGHT 64
@@ -21,7 +20,8 @@
 #define SEALEVELPRESSURE_HPA (1013.25)
 
 #define TIME_UPDATE_MS 1000
-#define DATA_UPDATE_MS 2000
+#define INFO_UPDATE_MS 2000
+#define BTN_HOLD_MS 800
 
 static TwoWire I2CBus(MASTER_SDA_PIN, MASTER_SCL_PIN);
 static Adafruit_SSD1306 display(DISPLAY_WIDTH, DISPLAY_HEIGHT, &I2CBus);
@@ -29,7 +29,9 @@ static Adafruit_BME280 bme;
 static Bounce2::Button button;
 
 static uint32_t lastTimeRefreshMs = 0;
-static uint32_t lastDataRefreshMs = 0;
+static uint32_t lastInfoRefreshMs = 0;
+
+static bool isOnHold = false;
 
 RTC_DS1307 rtc;
 
@@ -48,50 +50,79 @@ enum InfoMode {
     WORLD
 };
 
-static InfoMode currentMode = ROOM;
+enum TimeMode {
+    TIME,
+    DATE
+};
+
+static InfoMode currentInfoMode = ROOM;
+static TimeMode currentTimeMode = TIME;
 
 
 void clearTimeScreen() {
     display.fillRect(63, 0, display.width(), 10, SSD1306_BLACK);
 }
 
-void clearDataScreen() {
+void clearInfoScreen() {
     display.fillRect(0, 0, 61, 10, SSD1306_BLACK);
     display.fillRect(0, 12, display.width(), display.height(), SSD1306_BLACK);
 }
 
-static void switchMode() {
-    switch (currentMode) {
+static void switchInfoMode() {
+    switch (currentInfoMode) {
         case ROOM:
-            currentMode = WORLD;
+            currentInfoMode = WORLD;
             break;
         case WORLD:
-            currentMode = ROOM;
+            currentInfoMode = ROOM;
+            break;
+    }
+}
+
+static void switchTimeMode() {
+    switch (currentTimeMode) {
+        case TIME:
+            currentTimeMode = DATE;
+            break;
+        case DATE:
+            currentTimeMode = TIME;
             break;
     }
 }
 
 static void updateTime() {
     clearTimeScreen();
-    DateTime now = rtc.now();
     display.setTextSize(1);
     display.setCursor(65, 0);
-    display.print(now.hour());
-    display.print(":");
-    display.print(now.minute());
-    display.print(":");
-    display.print(now.second());
+
+    DateTime now = rtc.now();
+    switch (currentTimeMode) {
+        case TIME:
+            display.print(now.hour());
+            display.print(":");
+            display.print(now.minute());
+            display.print(":");
+            display.print(now.second());
+            break;
+        case DATE:
+            display.print(now.day());
+            display.print("/");
+            display.print(now.month());
+            display.print("/");
+            display.print(now.year());
+            break;
+    };
     display.display();
 }
 
-static void printLine(const Line& line) {
+static void printLine(const Line &line) {
     display.print(line.value, line.nDecimal);
     display.println(line.prefix);
 }
 
-static void updateData() {
-    clearDataScreen();
-    switch (currentMode) {
+static void updateInfo() {
+    clearInfoScreen();
+    switch (currentInfoMode) {
         case ROOM:
             displayMsg = "ROOM INFO";
 
@@ -133,17 +164,17 @@ void setup() {
     I2CBus.begin();
     delay(1000);
 
-    if (! bme.begin(BME280_ADDR, &I2CBus)) {
+    if (!bme.begin(BME280_ADDR, &I2CBus)) {
         Serial.println("Could not find a valid BME280 sensor, check wiring!");
         while (1);
     }
 
-    if (! display.begin(SSD1306_SWITCHCAPVCC, DISPLAY_ADDR)) {
+    if (!display.begin(SSD1306_SWITCHCAPVCC, DISPLAY_ADDR)) {
         Serial.println("SSD1306 allocation failed");
         while (1);
     }
 
-    while (! rtc.begin(&I2CBus)) {
+    while (!rtc.begin(&I2CBus)) {
         Serial.println("RTC initialization failed");
     }
 
@@ -165,23 +196,31 @@ void setup() {
 
 
 void loop() {
-    bool modeChanged = false;
+    bool infoModeChanged = false;
+    bool timeModeChanged = false;
     button.update();
-    if (button.pressed()) {
-        switchMode();
-        modeChanged = true;
+    if (button.pressed()) isOnHold = false;
+
+    if (button.isPressed() && !isOnHold && button.currentDuration() >= BTN_HOLD_MS) {
+        isOnHold = true;
+        switchTimeMode();
+        timeModeChanged = true;
+    }
+
+    if (button.released() && !isOnHold) {
+        switchInfoMode();
+        infoModeChanged = true;
     }
 
     uint32_t currentMs = millis();
 
-    if (currentMs - lastTimeRefreshMs >= TIME_UPDATE_MS) {
+    if (timeModeChanged | (currentMs - lastTimeRefreshMs >= TIME_UPDATE_MS)) {
         lastTimeRefreshMs = currentMs;
         updateTime();
     }
 
-    if (modeChanged | (currentMs - lastDataRefreshMs >= DATA_UPDATE_MS)) {
-        lastDataRefreshMs = currentMs;
-        updateData();
+    if (infoModeChanged | (currentMs - lastInfoRefreshMs >= INFO_UPDATE_MS)) {
+        lastInfoRefreshMs = currentMs;
+        updateInfo();
     }
-
 }
